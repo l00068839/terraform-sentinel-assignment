@@ -1,0 +1,111 @@
+import "tfplan/v2" as tfplan
+import "tfconfig/v2" as tfconfig
+
+volumes = filter tfplan.resource_changes as _, rc {
+	rc.mode is "managed" and
+		rc.type is "aws_ebs_volume" and
+		rc.change.after is not null
+}
+
+instances = filter tfplan.resource_changes as _, rc {
+	rc.mode is "managed" and
+		rc.type is "aws_instance" and
+		rc.change.after is not null
+}
+
+approved_zones = ["eu-west-1a", "eu-west-1b", "eu-west-1c"]
+approved_instance_types = ["t3.micro", "t3.small"]
+
+storage_in_ireland = rule {
+	all volumes as _, volume {
+		(volume.change.after.availability_zone else "") in approved_zones
+	}
+}
+
+storage_encrypted = rule {
+	all volumes as _, volume {
+		(volume.change.after.encrypted else false) is true
+	}
+}
+
+compute_in_ireland = rule {
+	all instances as _, instance {
+		(instance.change.after.availability_zone else "") in approved_zones
+	}
+}
+
+instance_types_approved = rule {
+	all instances as _, instance {
+		(instance.change.after.instance_type else "") in approved_instance_types
+	}
+}
+
+root_storage_encrypted = rule {
+	all instances as _, instance {
+		length(instance.change.after.root_block_device else []) > 0 and
+			all (instance.change.after.root_block_device else []) as disk {
+				(disk.encrypted else false) is true
+			}
+	}
+}
+
+imdsv2_required = rule {
+	all instances as _, instance {
+		length(instance.change.after.metadata_options else []) > 0 and
+			all (instance.change.after.metadata_options else []) as metadata {
+				(metadata.http_tokens else "") is "required"
+			}
+	}
+}
+
+no_public_ip = rule {
+	all instances as _, instance {
+		(instance.change.after.associate_public_ip_address else true) is false
+	}
+}
+
+ingress_rules = filter tfplan.resource_changes as _, rc {
+	rc.mode is "managed" and
+		rc.type is "aws_vpc_security_group_ingress_rule" and
+		rc.change.after is not null
+}
+
+ingress_sources_approved = rule {
+	all ingress_rules as _, ingress {
+		(ingress.change.after.cidr_ipv4 else "") is "10.20.10.0/24" and
+			(ingress.change.after.cidr_ipv6 else null) is null and
+			(ingress.change.after.referenced_security_group_id else null) is null and
+			(ingress.change.after.prefix_list_id else null) is null
+	}
+}
+
+providers_approved = rule {
+	length(tfconfig.providers) > 0 and
+	all tfconfig.providers as _, provider {
+		(provider.full_name else "") is "registry.terraform.io/hashicorp/aws" and
+			(provider.version_constraint else "") in ["6.55.0", "= 6.55.0"]
+	}
+}
+
+modules_approved = rule {
+	all tfconfig.module_calls as _, module_call {
+		(module_call.source else "") in [
+			"terraform-aws-modules/vpc/aws",
+			"registry.terraform.io/terraform-aws-modules/vpc/aws",
+		] and
+			(module_call.version_constraint else "") in ["6.0.1", "= 6.0.1"]
+	}
+}
+
+main = rule {
+	modules_approved and
+	providers_approved and
+	ingress_sources_approved and
+	storage_in_ireland and
+	storage_encrypted and
+	compute_in_ireland and
+	instance_types_approved and
+	root_storage_encrypted and
+	imdsv2_required and
+	no_public_ip
+}

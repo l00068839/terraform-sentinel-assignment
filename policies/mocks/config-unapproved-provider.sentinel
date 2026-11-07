@@ -1,0 +1,14 @@
+providers = {
+  "aws": {
+    "full_name": "registry.terraform.io/unapproved/aws",
+    "version_constraint": "= 6.55.0",
+  },
+}
+
+module_calls = {
+  "vpc": {
+    "source": "terraform-aws-modules/vpc/aws",
+    "version_constraint": "6.0.1",
+  },
+}
+

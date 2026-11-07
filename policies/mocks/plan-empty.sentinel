@@ -1,0 +1,2 @@
+# Empty infrastructure plan: this test focuses on supply chain rules.
+resource_changes = {}
