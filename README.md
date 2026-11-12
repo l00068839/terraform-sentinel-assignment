@@ -226,3 +226,12 @@ an appropriately controlled environment.
 Substantial AI assistance was used for code, troubleshooting and
 documentation. See [AI-USAGE.md](AI-USAGE.md) for the tool information,
 recorded prompts and division of contributions.
+
+## Policy configuration and test scenarios
+
+- [Sentinel policy configuration](policies/sentinel.hcl) records the policy
+  source and hard mandatory enforcement level. HCP is configured separately.
+- [Test scenarios](policies/test-scenarios.md) maps acceptance and rejection
+  cases to recorded evidence and identifies coverage gaps.
+- [Technical report](reports/Terraform_Sentinel_Technical_Report.pdf)
+  summarises results, limitations and recommendations.
